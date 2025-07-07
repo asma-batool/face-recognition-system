@@ -1,6 +1,32 @@
-dataset/*
-!dataset/dataset.keep
+# Python cache
+__pycache__/
+*.pyc
+
+# Data files
+*.npy
+*.pkl
+*.csv
+
+# Environment files
+*.yml
+
+# Notebook metadata
+*.ipynb_checkpoints
+
+# Dataset folder (optional)
+dataset/
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Output files (optional)
+*.out
 __pycache__/
 *.pyc
 *.pkl
 *.yml
+
