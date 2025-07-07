@@ -1,0 +1,7 @@
+#dataset/*
+#!dataset/dataset.keep
+#__pycache__/
+#*.pyc
+#*.pkl
+#
+#*.yml
