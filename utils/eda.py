@@ -1,42 +1,46 @@
 # Suppress TensorFlow and other warnings for clean output
+from collections import defaultdict
+import itertools
+from sklearn.metrics.pairwise import cosine_distances
+from deepface import DeepFace
+import cv2
+import random
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import warnings
+import logging
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import logging
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
-import warnings
 warnings.filterwarnings("ignore")
 
 # Essential libraries
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import random
-import cv2
-from deepface import DeepFace
-from sklearn.metrics.pairwise import cosine_distances
-import itertools
-from collections import defaultdict
 
-# ------------------ Configuration ------------------
-X = np.load("X_train.npy")              # shape: (num_samples, height, width, channels)
+# Configuration
+# shape: (num_samples, height, width, channels)
+X = np.load("X_train.npy")
 y = np.load("y_train.npy")              # class index for each image
-label_names = np.load("labels.npy", allow_pickle=True)  # maps class index to class name
+# maps class index to class name
+label_names = np.load("labels.npy", allow_pickle=True)
 
 SAMPLE_SIZE = 150
 FACE_RECOGNITION_MODEL = 'Facenet'
 
-# ------------------ Analysis Functions ------------------
+#  Analysis Functions
+
 
 def plot_correlation_matrix(X: np.ndarray, sample_size: int = SAMPLE_SIZE) -> None:
     """Computes and plots correlation between image pixels across a sample."""
-    print("📊 Plotting pixel-level correlation matrix for a random sample...")
+    print("Plotting pixel-level correlation matrix for a random sample...")
     indices = random.sample(range(len(X)), sample_size)
     sample_images = X[indices].reshape(sample_size, -1)
     corr_matrix = np.corrcoef(sample_images)
 
     plt.figure(figsize=(9, 7))
-    sns.heatmap(corr_matrix, cmap='coolwarm', cbar_kws={'label': 'Correlation'}, square=True)
+    sns.heatmap(corr_matrix, cmap='coolwarm', cbar_kws={
+                'label': 'Correlation'}, square=True)
     plt.title("Image Correlation Matrix (Pixel-Level)")
     plt.tight_layout()
     plt.show()
@@ -64,9 +68,10 @@ def plot_correlation_matrix(X: np.ndarray, sample_size: int = SAMPLE_SIZE) -> No
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
 
+
 def plot_embedding_distances_robust(X, y, label_names, model_name):
     """Extracts embeddings for each class and visualizes class-wise cosine distances."""
-    print("\n🧠 Extracting embeddings to compute mean class representatives...")
+    print("\nExtracting embeddings to compute mean class representatives...")
     class_images = defaultdict(list)
     for i, label in enumerate(y):
         img = (X[i] * 255).astype(np.uint8)
@@ -82,17 +87,18 @@ def plot_embedding_distances_robust(X, y, label_names, model_name):
         embeddings = []
         for img in images:
             try:
-                result = DeepFace.represent(img_path=img, model_name=model_name, enforce_detection=False)
+                result = DeepFace.represent(
+                    img_path=img, model_name=model_name, enforce_detection=False)
                 embeddings.append(result[0]['embedding'])
             except Exception as e:
-                print(f"     ❌ Error on one image in class {class_name}: {e}")
+                print(f"     Error on one image in class {class_name}: {e}")
         if embeddings:
             mean_emb = np.mean(embeddings, axis=0)
             mean_embeddings.append(mean_emb)
             class_labels_ordered.append(class_name)
 
     if not mean_embeddings:
-        print("❌ No embeddings generated. Skipping plot.")
+        print(" No embeddings generated. Skipping plot.")
         return
 
     dist_matrix = cosine_distances(np.array(mean_embeddings))
@@ -103,15 +109,17 @@ def plot_embedding_distances_robust(X, y, label_names, model_name):
     plt.tight_layout()
     plt.show()
 
+
 def plot_class_variance(X, y, label_names):
     """Plots variance within each class to highlight noisier categories."""
-    print("\n📈 Calculating class-wise image variance...")
+    print("\n Calculating class-wise image variance...")
     variances = defaultdict(float)
     for label in np.unique(y):
         class_images = X[y == label]
         variances[label_names[label]] = np.var(class_images)
     plt.figure(figsize=(10, 5))
-    sns.barplot(x=list(variances.keys()), y=list(variances.values()), palette='viridis')
+    sns.barplot(x=list(variances.keys()), y=list(
+        variances.values()), palette='viridis')
     plt.xticks(rotation=45, ha="right")
     plt.title("Class-wise Image Variance")
     plt.ylabel("Variance")
@@ -119,9 +127,12 @@ def plot_class_variance(X, y, label_names):
     plt.tight_layout()
     plt.show()
 
+# finding similar images with high correlation from each class
+
+
 def find_duplicate_images(X, threshold=0.99, max_results=5):
     """Visualizes potential near-duplicate image pairs based on correlation."""
-    print("\n🔍 Detecting possible duplicate images...")
+    print("\n Detecting possible duplicate images...")
     flattened = X.reshape(X.shape[0], -1)
     corr_matrix = np.corrcoef(flattened)
     np.fill_diagonal(corr_matrix, 0)
@@ -136,21 +147,25 @@ def find_duplicate_images(X, threshold=0.99, max_results=5):
             if len(duplicates_to_show) >= max_results:
                 break
     if not duplicates_to_show:
-        print("✅ No significant duplicates found.")
+        print(" No significant duplicates found.")
         return
     for i, j, score in duplicates_to_show:
         fig, axs = plt.subplots(1, 2, figsize=(6, 3))
         fig.suptitle(f"Potential Duplicates (Corr={score:.3f})", fontsize=14)
-        axs[0].imshow(cv2.cvtColor((X[i] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
+        axs[0].imshow(cv2.cvtColor(
+            (X[i] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         axs[0].set_title(f"Image Index: {i}")
         axs[0].axis('off')
-        axs[1].imshow(cv2.cvtColor((X[j] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
+        axs[1].imshow(cv2.cvtColor(
+            (X[j] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         axs[1].set_title(f"Image Index: {j}")
         axs[1].axis('off')
         plt.tight_layout(rect=[0, 0, 1, 0.92])
         plt.show()
 
-# 🔹 5. Auto-Remove Similar Images Within Classes
+#  5. Auto-Remove Similar Images Within Classes
+
+
 def remove_similar_samples_per_class(X, y, threshold=0.99, remove_per_class=10):
     """
     Removes a few highly similar (correlated) images from each class.
@@ -172,15 +187,17 @@ def remove_similar_samples_per_class(X, y, threshold=0.99, remove_per_class=10):
             to_remove = idxs[j]
             removed.add(to_remove)
         keep_indices.extend([i for i in idxs if i not in removed])
-    print(f"➡️ Removed {len(X) - len(keep_indices)} samples from dataset.")
+    print(f" Removed {len(X) - len(keep_indices)} samples from dataset.")
     return X[keep_indices], y[keep_indices]
 
-# ------------------ Main Execution ------------------
+
+# Main Execution
 if __name__ == "__main__":
-    print("🚀 Running Dataset Sanity Checks...\n" + "="*40)
+    print(" Running Dataset Sanity Checks...\n" + "="*40)
 
     # Step 0: Optional cleaning
-    X, y = remove_similar_samples_per_class(X, y, threshold=0.995, remove_per_class=3)
+    X, y = remove_similar_samples_per_class(
+        X, y, threshold=0.995, remove_per_class=3)
     print("="*40)
 
     # Step 1: Pixel-level similarity
@@ -188,7 +205,8 @@ if __name__ == "__main__":
     print("="*40)
 
     # Step 2: Embedding-based class distance
-    plot_embedding_distances_robust(X, y, label_names, model_name=FACE_RECOGNITION_MODEL)
+    plot_embedding_distances_robust(
+        X, y, label_names, model_name=FACE_RECOGNITION_MODEL)
     print("="*40)
 
     # Step 3: Class-wise variance
