@@ -1,8 +1,54 @@
 import numpy as np
 import cv2
 import os
-import numpy as np
-import cv2
+import pandas as pd
+
+# run https://drive.google.com/file/d/1ocR2wb_L73acVsWf6L2KG40dPWyjKuYh/view
+
+
+def select_features_by_correlation(X_train, correlation_threshold):
+    """
+    Identifies and removes highly correlated features from a training dataset.
+
+    Args:
+        X_train (np.ndarray): The training feature set.
+        correlation_threshold (float): The absolute correlation value above which
+                                       a feature will be considered redundant.
+
+    Returns:
+        list: A list of indices for the features to KEEP.
+    """
+    print(
+        f"\n--- Running Feature Selection (Correlation Threshold = {correlation_threshold}) ---")
+    # Create a pandas DataFrame for easy correlation calculation
+    df = pd.DataFrame(X_train)
+
+    # Calculate the correlation matrix
+    corr_matrix = df.corr().abs()
+
+    # Get the upper triangle of the correlation matrix
+    # We don't need to check the whole matrix, as corr(A,B) == corr(B,A)
+    # and we don't need to check the diagonal (corr(A,A) == 1)
+    upper_triangle = corr_matrix.where(
+        np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+
+    # Find index of feature columns with correlation greater than the threshold
+    to_drop = [column for column in upper_triangle.columns if any(
+        upper_triangle[column] > correlation_threshold)]
+
+    print(f"Original number of features: {X_train.shape[1]}")
+    print(f"Found {len(to_drop)} highly correlated features to remove.")
+
+    # Create a list of features to keep
+    all_feature_indices = list(range(X_train.shape[1]))
+    features_to_keep_indices = [
+        i for i in all_feature_indices if i not in to_drop]
+
+    print(
+        f"Number of features after selection: {len(features_to_keep_indices)}")
+
+    return features_to_keep_indices
+
 
 # LBP logic
 
@@ -79,7 +125,6 @@ def calculate_lbp_features(image):
 
 def main():
     print("Loading preprocessed data...")
-    # Load train data
     X_train = np.load("X_train.npy")
     X_test = np.load("X_test.npy")
 
@@ -92,7 +137,6 @@ def main():
 
     print("\nExtracting LBP features from the training set...")
     for i, image in enumerate(X_train):
-        # Calculate the LBP feature vector for each training image
         features = calculate_lbp_features(image)
         X_train_lbp_features.append(features)
         if (i + 1) % 50 == 0:
@@ -100,7 +144,6 @@ def main():
 
     print("\nExtracting LBP features from the testing set...")
     for i, image in enumerate(X_test):
-        # Calculate the LBP feature vector for each testing image
         features = calculate_lbp_features(image)
         X_test_lbp_features.append(features)
         if (i + 1) % 50 == 0:
@@ -110,16 +153,30 @@ def main():
     X_train_lbp = np.array(X_train_lbp_features)
     X_test_lbp = np.array(X_test_lbp_features)
 
-    # Save the new feature vectors to disk
-    np.save("X_train_lbp_features.npy", X_train_lbp)
-    np.save("X_test_lbp_features.npy", X_test_lbp)
+    # --- APPLY FEATURE SELECTION ---
+    # 1. Decide which features to keep based ONLY on the training data
+    correlation_threshold = float(input("Enter the correlation threshold"))
+    features_to_keep = select_features_by_correlation(
+        X_train_lbp, correlation_threshold)
 
-    print("\n Feature Extraction Complete ")
-    print(f"Training features shape: {X_train_lbp.shape}")
-    print(f"Testing features shape: {X_test_lbp.shape}")
+    # 2. Filter both training and testing sets to keep only those features
+    X_train_lbp_selected = X_train_lbp[:, features_to_keep]
+    X_test_lbp_selected = X_test_lbp[:, features_to_keep]
+    # --- FEATURE SELECTION COMPLETE ---
+
+    # Save the new, reduced feature vectors to disk
+    np.save("X_train_lbp_features.npy", X_train_lbp_selected)
+    np.save("X_test_lbp_features.npy", X_test_lbp_selected)
+
+    print("\n Feature Extraction & Selection Complete ")
+    print(f"Training features shape: {X_train_lbp_selected.shape}")
+    print(f"Testing features shape: {X_test_lbp_selected.shape}")
     print("Saved 'X_train_lbp_features.npy' and 'X_test_lbp_features.npy'.")
     print("Features extracted and saved. Ready for classification.")
 
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
