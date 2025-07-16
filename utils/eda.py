@@ -19,35 +19,28 @@ import itertools
 from collections import defaultdict
 
 # ------------------ Configuration ------------------
-# Load training images (X), labels (y), and label names
 X = np.load("X_train.npy")              # shape: (num_samples, height, width, channels)
 y = np.load("y_train.npy")              # class index for each image
 label_names = np.load("labels.npy", allow_pickle=True)  # maps class index to class name
 
-SAMPLE_SIZE = 150                       # Number of images to sample for correlation matrix
-FACE_RECOGNITION_MODEL = 'Facenet'      # Embedding model used in DeepFace
+SAMPLE_SIZE = 150
+FACE_RECOGNITION_MODEL = 'Facenet'
 
 # ------------------ Analysis Functions ------------------
 
-# 🔹 1. Pixel-Level Correlation Matrix
 def plot_correlation_matrix(X: np.ndarray, sample_size: int = SAMPLE_SIZE) -> None:
-    """
-    Computes and plots correlation between image pixels across a sample.
-    Also shows top 5 most similar pairs visually.
-    """
+    """Computes and plots correlation between image pixels across a sample."""
     print("📊 Plotting pixel-level correlation matrix for a random sample...")
-    indices = random.sample(range(len(X)), sample_size)  # Randomly pick image indices
-    sample_images = X[indices].reshape(sample_size, -1)  # Flatten each image to 1D
-    corr_matrix = np.corrcoef(sample_images)             # Compute correlation between images
+    indices = random.sample(range(len(X)), sample_size)
+    sample_images = X[indices].reshape(sample_size, -1)
+    corr_matrix = np.corrcoef(sample_images)
 
-    # Show heatmap of correlation matrix
     plt.figure(figsize=(9, 7))
     sns.heatmap(corr_matrix, cmap='coolwarm', cbar_kws={'label': 'Correlation'}, square=True)
     plt.title("Image Correlation Matrix (Pixel-Level)")
     plt.tight_layout()
     plt.show()
 
-    # Identify top 5 most correlated pairs
     pairs = list(itertools.combinations(range(sample_size), 2))
     correlations = [(i, j, corr_matrix[i, j]) for (i, j) in pairs]
     top_pairs = sorted(correlations, key=lambda x: -abs(x[2]))[:5]
@@ -56,7 +49,6 @@ def plot_correlation_matrix(X: np.ndarray, sample_size: int = SAMPLE_SIZE) -> No
     for i, j, corr in top_pairs:
         print(f"Image {i} and {j} — Correlation: {corr:.4f}")
 
-    # Show image pairs
     fig, axs = plt.subplots(len(top_pairs), 2, figsize=(6, 10))
     fig.suptitle("Most Similar Image Pairs (Pixel-Level)", fontsize=16)
     for row, (i, j, corr) in enumerate(top_pairs):
@@ -65,7 +57,6 @@ def plot_correlation_matrix(X: np.ndarray, sample_size: int = SAMPLE_SIZE) -> No
         axs[row, 0].imshow(cv2.cvtColor(img1, cv2.COLOR_BGR2RGB))
         axs[row, 0].set_title(f"Image {i}")
         axs[row, 0].axis('off')
-
         axs[row, 1].imshow(cv2.cvtColor(img2, cv2.COLOR_BGR2RGB))
         axs[row, 1].set_title(f"Image {j} (Corr={corr:.2f})")
         axs[row, 1].axis('off')
@@ -73,14 +64,9 @@ def plot_correlation_matrix(X: np.ndarray, sample_size: int = SAMPLE_SIZE) -> No
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
 
-# 🔹 2. Class-Level Embedding Distance (Using Mean Embedding)
-def plot_embedding_distances_robust(X: np.ndarray, y: np.ndarray, label_names: np.ndarray, model_name: str) -> None:
-    """
-    Extracts embeddings for each class, averages them, and plots pairwise cosine distances.
-    """
+def plot_embedding_distances_robust(X, y, label_names, model_name):
+    """Extracts embeddings for each class and visualizes class-wise cosine distances."""
     print("\n🧠 Extracting embeddings to compute mean class representatives...")
-
-    # Group images by class label
     class_images = defaultdict(list)
     for i, label in enumerate(y):
         img = (X[i] * 255).astype(np.uint8)
@@ -90,11 +76,9 @@ def plot_embedding_distances_robust(X: np.ndarray, y: np.ndarray, label_names: n
     mean_embeddings = []
     class_labels_ordered = []
 
-    # For each class, compute mean embedding from DeepFace
     for label_idx, images in sorted(class_images.items()):
         class_name = label_names[label_idx]
         print(f"  Processing class '{class_name}' ({len(images)} images)...")
-
         embeddings = []
         for img in images:
             try:
@@ -102,23 +86,16 @@ def plot_embedding_distances_robust(X: np.ndarray, y: np.ndarray, label_names: n
                 embeddings.append(result[0]['embedding'])
             except Exception as e:
                 print(f"     ❌ Error on one image in class {class_name}: {e}")
-                continue
-
         if embeddings:
             mean_emb = np.mean(embeddings, axis=0)
             mean_embeddings.append(mean_emb)
             class_labels_ordered.append(class_name)
-        else:
-            print(f"  ⚠️ No embeddings generated for class {class_name}.")
 
     if not mean_embeddings:
-        print("\n❌ Could not generate any embeddings. Aborting distance plot.")
+        print("❌ No embeddings generated. Skipping plot.")
         return
 
-    # Compute cosine distance matrix between class means
     dist_matrix = cosine_distances(np.array(mean_embeddings))
-
-    # Show distance heatmap
     plt.figure(figsize=(10, 8))
     sns.heatmap(dist_matrix, xticklabels=class_labels_ordered, yticklabels=class_labels_ordered,
                 cmap='mako_r', annot=True, fmt=".2f")
@@ -126,18 +103,13 @@ def plot_embedding_distances_robust(X: np.ndarray, y: np.ndarray, label_names: n
     plt.tight_layout()
     plt.show()
 
-# 🔹 3. Class-Wise Variance Plot
-def plot_class_variance(X: np.ndarray, y: np.ndarray, label_names: np.ndarray) -> None:
-    """
-    Calculates and visualizes pixel variance within each class to spot noisy or uniform classes.
-    """
+def plot_class_variance(X, y, label_names):
+    """Plots variance within each class to highlight noisier categories."""
     print("\n📈 Calculating class-wise image variance...")
     variances = defaultdict(float)
     for label in np.unique(y):
         class_images = X[y == label]
         variances[label_names[label]] = np.var(class_images)
-
-    # Bar plot of variances
     plt.figure(figsize=(10, 5))
     sns.barplot(x=list(variances.keys()), y=list(variances.values()), palette='viridis')
     plt.xticks(rotation=45, ha="right")
@@ -147,21 +119,15 @@ def plot_class_variance(X: np.ndarray, y: np.ndarray, label_names: np.ndarray) -
     plt.tight_layout()
     plt.show()
 
-# 🔹 4. Duplicate Image Detector (based on pixel correlation)
-def find_duplicate_images(X: np.ndarray, threshold: float = 0.99, max_results: int = 5) -> None:
-    """
-    Detects near-duplicate images by finding highly correlated pixel patterns.
-    """
+def find_duplicate_images(X, threshold=0.99, max_results=5):
+    """Visualizes potential near-duplicate image pairs based on correlation."""
     print("\n🔍 Detecting possible duplicate images...")
     flattened = X.reshape(X.shape[0], -1)
     corr_matrix = np.corrcoef(flattened)
-    np.fill_diagonal(corr_matrix, 0)  # Remove self-correlation
-
+    np.fill_diagonal(corr_matrix, 0)
     duplicate_pairs = np.argwhere(corr_matrix >= threshold)
     seen = set()
     duplicates_to_show = []
-
-    # Filter top N unique duplicate pairs
     for i, j in duplicate_pairs:
         if i != j and tuple(sorted((i, j))) not in seen:
             score = corr_matrix[i, j]
@@ -169,42 +135,66 @@ def find_duplicate_images(X: np.ndarray, threshold: float = 0.99, max_results: i
             seen.add(tuple(sorted((i, j))))
             if len(duplicates_to_show) >= max_results:
                 break
-
     if not duplicates_to_show:
         print("✅ No significant duplicates found.")
         return
-
-    # Show duplicate image pairs
     for i, j, score in duplicates_to_show:
         fig, axs = plt.subplots(1, 2, figsize=(6, 3))
         fig.suptitle(f"Potential Duplicates (Corr={score:.3f})", fontsize=14)
         axs[0].imshow(cv2.cvtColor((X[i] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         axs[0].set_title(f"Image Index: {i}")
         axs[0].axis('off')
-
         axs[1].imshow(cv2.cvtColor((X[j] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         axs[1].set_title(f"Image Index: {j}")
         axs[1].axis('off')
-
         plt.tight_layout(rect=[0, 0, 1, 0.92])
         plt.show()
+
+# 🔹 5. Auto-Remove Similar Images Within Classes
+def remove_similar_samples_per_class(X, y, threshold=0.99, remove_per_class=10):
+    """
+    Removes a few highly similar (correlated) images from each class.
+    Returns new arrays: X_new, y_new
+    """
+    print("\n🧹 Removing near-duplicate images per class...")
+    keep_indices = []
+    for label in np.unique(y):
+        idxs = np.where(y == label)[0]
+        class_images = X[idxs].reshape(len(idxs), -1)
+        corr_matrix = np.corrcoef(class_images)
+        np.fill_diagonal(corr_matrix, 0)
+        similar_pairs = np.argwhere(corr_matrix >= threshold)
+        removed = set()
+        for i, j in similar_pairs:
+            if len(removed) >= remove_per_class:
+                break
+            # Remove one of the pair (not both)
+            to_remove = idxs[j]
+            removed.add(to_remove)
+        keep_indices.extend([i for i in idxs if i not in removed])
+    print(f"➡️ Removed {len(X) - len(keep_indices)} samples from dataset.")
+    return X[keep_indices], y[keep_indices]
 
 # ------------------ Main Execution ------------------
 if __name__ == "__main__":
     print("🚀 Running Dataset Sanity Checks...\n" + "="*40)
 
-    # Pixel-level image similarity
+    # Step 0: Optional cleaning
+    X, y = remove_similar_samples_per_class(X, y, threshold=0.995, remove_per_class=3)
+    print("="*40)
+
+    # Step 1: Pixel-level similarity
     plot_correlation_matrix(X, sample_size=SAMPLE_SIZE)
-    print("\n" + "="*40)
+    print("="*40)
 
-    # Deep embedding feature distance between class means
+    # Step 2: Embedding-based class distance
     plot_embedding_distances_robust(X, y, label_names, model_name=FACE_RECOGNITION_MODEL)
-    print("\n" + "="*40)
+    print("="*40)
 
-    # Class-wise image content variation
+    # Step 3: Class-wise variance
     plot_class_variance(X, y, label_names)
-    print("\n" + "="*40)
+    print("="*40)
 
-    # Duplicate image detection
+    # Step 4: Duplicate visualization (final check)
     find_duplicate_images(X, threshold=0.99)
     print("\n✅ All checks complete.")
