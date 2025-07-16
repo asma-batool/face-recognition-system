@@ -22,7 +22,7 @@ label_names = np.load("labels.npy", allow_pickle=True)
 
 SAMPLE_SIZE = 150  
 
-# 1️⃣ Correlation Matrix (Pixel-level Similarity)
+# 1️ Correlation Matrix (Pixel-level Similarity)
 def plot_correlation_matrix(X, sample_size=SAMPLE_SIZE):
     indices = random.sample(range(len(X)), sample_size)
     sample_images = X[indices].reshape(sample_size, -1)
