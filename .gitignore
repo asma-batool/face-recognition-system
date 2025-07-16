@@ -7,6 +7,64 @@ __pycache__/
 *.pkl
 *.csv
 
+# DeepFace weights and cache
+.deepface/
+~/.deepface/
+~/.deepface/weights/
+*.h5
+
+# Environment files
+*.yml
+*.env
+
+# Notebook metadata
+*.ipynb_checkpoints/
+
+# Dataset and output
+dataset/
+result/
+
+# OS junk
+.DS_Store
+Thumbs.db
+# Python cache
+__pycache__/
+*.pyc
+
+# Data files
+*.npy
+*.pkl
+*.csv
+
+# DeepFace weights and cache
+.deepface/
+~/.deepface/
+~/.deepface/weights/
+*.h5
+
+# Environment files
+*.yml
+*.env
+
+# Notebook metadata
+*.ipynb_checkpoints/
+
+# Dataset and output
+dataset/
+result/
+
+# OS junk
+.DS_Store
+Thumbs.db
+# Python cache
+__pycache__/
+*.pyc
+
+# Data files
+*.npy
+*.pkl
+*.csv
+
 # Environment files
 *.yml
 
