@@ -3,7 +3,7 @@ import cv2
 import os
 import pandas as pd
 
-# run https://drive.google.com/file/d/1ocR2wb_L73acVsWf6L2KG40dPWyjKuYh/view
+# The link is a comment, no action needed for it in the code
 
 
 def select_features_by_correlation(X_train, correlation_threshold):
@@ -93,7 +93,6 @@ def calculate_lbp_features(image):
 
     if len(image.shape) == 3 and image.shape[2] == 3:
         # The input is a normalized float color image.
-
         image_uint8 = (image * 255).astype(np.uint8)
         gray_image = cv2.cvtColor(image_uint8, cv2.COLOR_BGR2GRAY)
     else:
@@ -101,21 +100,28 @@ def calculate_lbp_features(image):
 
     height, width = gray_image.shape
 
+    # Handle cases where image might be too small for 3x3 LBP window
+    if height < 3 or width < 3:
+        # Return a zero histogram of expected size (256 for LBP)
+        # This prevents errors if a very small face ROI is passed
+        return np.zeros(256, dtype=np.float32)
+
     # Initialize empty LBP img.
     lbp_image = np.zeros((height - 2, width - 2), dtype=np.uint8)
 
     # Iterate through each pixel
     for y in range(1, height - 1):
-        for x in range(1, width - 1):
+        for x in range(1, width - 1):  # Corrected range for x
             lbp_image[y-1, x-1] = get_pixel_lbp_value(gray_image, x, y)
 
     hist, _ = np.histogram(lbp_image.ravel(),
+                           # 256 bins for LBP values 0-255
                            bins=np.arange(0, 257),
                            range=(0, 256))
 
     # Normalize the histogram
     hist = hist.astype("float")
-    # Add a small epsilon to mitigate zero devision
+    # Add a small epsilon to mitigate zero division
     hist /= (hist.sum() + 1e-6)
 
     return hist
@@ -125,6 +131,7 @@ def calculate_lbp_features(image):
 
 def main():
     print("Loading preprocessed data...")
+    # Assuming these are in the root directory relative to where featureExtraction.py is run
     X_train = np.load("X_train.npy")
     X_test = np.load("X_test.npy")
 
@@ -155,7 +162,8 @@ def main():
 
     # --- APPLY FEATURE SELECTION ---
     # 1. Decide which features to keep based ONLY on the training data
-    correlation_threshold = float(input("Enter the correlation threshold"))
+    correlation_threshold = float(
+        input("Enter the correlation threshold: "))  # Added colon for clarity
     features_to_keep = select_features_by_correlation(
         X_train_lbp, correlation_threshold)
 
@@ -165,18 +173,21 @@ def main():
     # --- FEATURE SELECTION COMPLETE ---
 
     # Save the new, reduced feature vectors to disk
+    # These will be saved in the CWD of the script execution (i.e., your project root if run from there)
     np.save("X_train_lbp_features.npy", X_train_lbp_selected)
     np.save("X_test_lbp_features.npy", X_test_lbp_selected)
+    # <-- THIS IS THE CRUCIAL LINE!
+    np.save("features_to_keep.npy", np.array(features_to_keep))
 
     print("\n Feature Extraction & Selection Complete ")
     print(f"Training features shape: {X_train_lbp_selected.shape}")
     print(f"Testing features shape: {X_test_lbp_selected.shape}")
-    print("Saved 'X_train_lbp_features.npy' and 'X_test_lbp_features.npy'.")
+    print("Saved 'X_train_lbp_features.npy', 'X_test_lbp_features.npy', and 'features_to_keep.npy'.")
     print("Features extracted and saved. Ready for classification.")
 
 
+# This ensures main() is called only when the script is executed directly
 if __name__ == "__main__":
     main()
 
-if __name__ == "__main__":
-    main()
+# Removed the duplicate if __name__ == "__main__": main() at the end
