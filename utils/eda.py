@@ -1,4 +1,4 @@
-
+# dataset_analysis.py
 
 import numpy as np
 import cv2
@@ -17,6 +17,7 @@ warnings.filterwarnings("ignore")
 # --- LBP Feature Extraction Functions ---
 # This section makes the script self-contained by including the necessary
 # feature extraction logic directly.
+
 
 def get_pixel_lbp_value(img, x, y):
     """
@@ -38,6 +39,7 @@ def get_pixel_lbp_value(img, x, y):
     binary_string = "".join(map(str, binary_code))
     decimal_value = int(binary_string, 2)
     return decimal_value
+
 
 def calculate_lbp_features(image):
     """
@@ -70,6 +72,7 @@ def calculate_lbp_features(image):
 
 # --- Analysis Functions ---
 
+
 def plot_correlation_matrix(X: np.ndarray, sample_size: int) -> None:
     """Computes and plots correlation between image pixels across a sample."""
     print("Plotting pixel-level correlation matrix for a random sample...")
@@ -78,7 +81,8 @@ def plot_correlation_matrix(X: np.ndarray, sample_size: int) -> None:
     corr_matrix = np.corrcoef(sample_images)
 
     plt.figure(figsize=(9, 7))
-    sns.heatmap(corr_matrix, cmap='coolwarm', cbar_kws={'label': 'Correlation'}, square=True)
+    sns.heatmap(corr_matrix, cmap='coolwarm', cbar_kws={
+                'label': 'Correlation'}, square=True)
     plt.title("Image Correlation Matrix (Pixel-Level)")
     plt.tight_layout()
     plt.show()
@@ -106,6 +110,7 @@ def plot_correlation_matrix(X: np.ndarray, sample_size: int) -> None:
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
 
+
 def plot_feature_vector_distances(X, y, label_names):
     """Extracts LBP features for each class and visualizes class-wise cosine distances."""
     print("\nExtracting LBP features to compute mean class representatives...")
@@ -119,10 +124,10 @@ def plot_feature_vector_distances(X, y, label_names):
     for label_idx, images in sorted(class_images.items()):
         class_name = label_names[label_idx]
         print(f"  Processing class '{class_name}' ({len(images)} images)...")
-        
+
         # Generate LBP feature vectors for all images in the class
         feature_vectors = [calculate_lbp_features(img) for img in images]
-        
+
         if feature_vectors:
             # Calculate the mean feature vector for the class
             mean_vec = np.mean(feature_vectors, axis=0)
@@ -135,13 +140,14 @@ def plot_feature_vector_distances(X, y, label_names):
 
     # Compute the pairwise cosine distance between all mean class vectors
     dist_matrix = cosine_distances(np.array(mean_feature_vectors))
-    
+
     plt.figure(figsize=(10, 8))
     sns.heatmap(dist_matrix, xticklabels=class_labels_ordered, yticklabels=class_labels_ordered,
                 cmap='mako_r', annot=True, fmt=".2f")
     plt.title("Cosine Distance Between Mean Class LBP Feature Vectors")
     plt.tight_layout()
     plt.show()
+
 
 def plot_class_variance(X, y, label_names):
     """Plots variance within each class to highlight noisier categories."""
@@ -151,13 +157,15 @@ def plot_class_variance(X, y, label_names):
         class_images = X[y == label]
         variances[label_names[label]] = np.var(class_images)
     plt.figure(figsize=(10, 5))
-    sns.barplot(x=list(variances.keys()), y=list(variances.values()), palette='viridis')
+    sns.barplot(x=list(variances.keys()), y=list(
+        variances.values()), palette='viridis')
     plt.xticks(rotation=45, ha="right")
     plt.title("Class-wise Image Variance")
     plt.ylabel("Variance")
     plt.xlabel("Class Label")
     plt.tight_layout()
     plt.show()
+
 
 def find_duplicate_images(X, threshold=0.99, max_results=5):
     """Visualizes potential near-duplicate image pairs based on correlation."""
@@ -181,14 +189,17 @@ def find_duplicate_images(X, threshold=0.99, max_results=5):
     for i, j, score in duplicates_to_show:
         fig, axs = plt.subplots(1, 2, figsize=(6, 3))
         fig.suptitle(f"Potential Duplicates (Corr={score:.3f})", fontsize=14)
-        axs[0].imshow(cv2.cvtColor((X[i] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
+        axs[0].imshow(cv2.cvtColor(
+            (X[i] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         axs[0].set_title(f"Image Index: {i}")
         axs[0].axis('off')
-        axs[1].imshow(cv2.cvtColor((X[j] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
+        axs[1].imshow(cv2.cvtColor(
+            (X[j] * 255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         axs[1].set_title(f"Image Index: {j}")
         axs[1].axis('off')
         plt.tight_layout(rect=[0, 0, 1, 0.92])
         plt.show()
+
 
 def remove_similar_samples_per_class(X, y, threshold=0.99, remove_per_class=10):
     """
@@ -217,25 +228,28 @@ def remove_similar_samples_per_class(X, y, threshold=0.99, remove_per_class=10):
     print(f"Removed {len(X) - len(keep_indices)} samples from dataset.")
     return X[keep_indices], y[keep_indices]
 
+
 # --- Main Execution ---
 if __name__ == "__main__":
     # Configuration
     SAMPLE_SIZE = 150
-    
+
     # Load data
     try:
         X = np.load("X_train.npy")
         y = np.load("y_train.npy")
         label_names = np.load("labels.npy", allow_pickle=True)
     except FileNotFoundError:
-        print("Error: Make sure 'X_train.npy', 'y_train.npy', and 'labels.npy' are present.")
+        print(
+            "Error: Make sure 'X_train.npy', 'y_train.npy', and 'labels.npy' are present.")
         print("Run the preprocessing script first.")
         exit()
-        
+
     print("Running Dataset Sanity Checks...\n" + "="*40)
 
     # Step 0: Optional cleaning
-    X, y = remove_similar_samples_per_class(X, y, threshold=0.995, remove_per_class=3)
+    X, y = remove_similar_samples_per_class(
+        X, y, threshold=0.995, remove_per_class=3)
     print("="*40)
 
     # Step 1: Pixel-level similarity
