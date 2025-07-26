@@ -57,5 +57,5 @@ np.save("y_train.npy", y_train)
 np.save("y_test.npy", y_test)
 np.save("labels.npy", label_names)
 
-print("\n✅ Done preprocessing with face cropping.")
+print("\nDone preprocessing with face cropping.")
 print(f"Train: {len(X_train)} | Test: {len(X_test)}")
